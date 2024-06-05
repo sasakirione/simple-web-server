@@ -28,14 +28,19 @@ fn handle_connection(mut stream: std::net::TcpStream) {
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
+static BAD_REQUEST: &str = "HTTP/1.1 400 BAD REQUEST\r\n\r\n";
+static NOT_FOUND: &str = "HTTP/1.1 200 OK\r\n\r\n";
+static OK: &str = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
 
 fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, &str) {
-    let get = b"GET / HTTP/1.1\r\n";
-
-    if buffer.starts_with(get) {
-        ("HTTP/1.1 200 OK\r\n\r\n", "static/hello.html")
-    } else {
-        ("HTTP/1.1 404 NOT FOUND\r\n\r\n", "static/404.html")
+    let request_str = std::str::from_utf8(buffer).expect("Invalid UTF-8 sequence");
+    let parts: Vec<&str> = request_str.split_whitespace().collect();
+    if parts?[2] != "HTTP/1.1" {
+        return (BAD_REQUEST, "static/400.html")
+    }
+    match (parts?[0], parts?[1]) {
+        ("GET", "/") => (OK, "static/hello.html"),
+        _ => (NOT_FOUND, "static/404.html")
     }
 }
 

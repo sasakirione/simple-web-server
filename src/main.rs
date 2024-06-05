@@ -35,10 +35,10 @@ static OK: &str = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
 fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, &str) {
     let request_str = std::str::from_utf8(buffer).expect("Invalid UTF-8 sequence");
     let parts: Vec<&str> = request_str.split_whitespace().collect();
-    if parts?[2] != "HTTP/1.1" {
+    if parts[2] != "HTTP/1.1" {
         return (BAD_REQUEST, "static/400.html")
     }
-    match (parts?[0], parts?[1]) {
+    match (parts[0], parts[1]) {
         ("GET", "/") => (OK, "static/hello.html"),
         _ => (NOT_FOUND, "static/404.html")
     }

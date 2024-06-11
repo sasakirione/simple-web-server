@@ -1,0 +1,7 @@
+web_site:
+  - site1:
+      host_name: site1.sasakirione.com
+      server_root_path: /Users/sasakirione/repository/sandbox/test_site/site1
+  - site2:
+      host_name: site2.sasakirione.com
+      server_root_path: /Users/sasakirione/repository/sandbox/test_site/site2

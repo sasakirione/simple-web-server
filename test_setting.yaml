@@ -1,7 +1,6 @@
 web_site:
-  - site1:
-      host_name: site1.sasakirione.com
-      server_root_path: /Users/sasakirione/repository/rust_web_server/test_site/site1
-  - site2:
-      host_name: site2.sasakirione.com
-      server_root_path: /Users/sasakirione/repository/rust_web_server/test_site/site2
+  - host_name: site1.sasakirione.com
+    server_root_path: /Users/sasakirione/repository/rust_web_server/test_site/site1
+  - host_name: site2.sasakirione.com
+    server_root_path: /Users/sasakirione/repository/rust_web_server/test_site/site2
+setting1: true

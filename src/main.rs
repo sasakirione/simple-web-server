@@ -9,10 +9,11 @@ static SETTING: Mutex<Vec<Yaml>> = Mutex::new(Vec::new());
 fn main() {
     let args: Vec<String> = env::args().collect();
     // 設定ファイルを読み込む
-    let mut docs = if args.first().is_some() && args.iter().any(|x| x.contains("yaml")) {
+    let mut docs = if args.iter().any(|x| x.contains("yaml")) {
         println!("設定ファイルを読み込みます");
-        let config_file = fs::read_to_string(args.first().unwrap()).expect("設定ファイルの読み込みに失敗しました");
-        YamlLoader::load_from_str(&config_file).expect("設定ファイルの読み込みに失敗しました")
+        let config_file = fs::read_to_string(args.iter().find(|x| x.contains("yaml")).unwrap()).expect("設定ファイルの読み込みに失敗しました");
+        let config_file2 = config_file.as_str();
+        YamlLoader::load_from_str(&config_file2).expect("設定ファイルの読み込みに失敗しました")
     } else {
         println!("デフォルト設定を読み込みます");
         YamlLoader::load_from_str("").expect("設定ファイルの読み込みに失敗しました")
@@ -20,6 +21,8 @@ fn main() {
 
     let mut setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
     setting.append(&mut docs);
+
+    println!("{:?}", &setting.first().unwrap());
 
     // ソケットをバインドして待ち受け
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();

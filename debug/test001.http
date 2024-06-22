@@ -1,0 +1,11 @@
+### TEST1
+GET http://localhost:7878/ HTTP/1.1
+Host: site1.sasakirione.com
+
+### TEST2
+GET http://localhost:7878/ HTTP/2
+Host: site1.sasakirione.com
+
+### TEST2
+GET http://localhost:7878/ HTTP/1.1
+Host: site2.sasakirione.com

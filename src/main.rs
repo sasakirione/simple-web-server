@@ -19,10 +19,10 @@ fn main() {
         YamlLoader::load_from_str("").expect("設定ファイルの読み込みに失敗しました")
     };
 
-    let mut setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
-    setting.append(&mut docs);
-
-    println!("{:?}", &setting.first().unwrap());
+    {
+        let mut setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
+        setting.append(&mut docs);
+    }
 
     // ソケットをバインドして待ち受け
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
@@ -50,18 +50,30 @@ fn handle_connection(mut stream: std::net::TcpStream) {
     stream.flush().unwrap();
 }
 static BAD_REQUEST: &str = "HTTP/1.1 400 BAD REQUEST\r\n\r\n";
-static NOT_FOUND: &str = "HTTP/1.1 200 OK\r\n\r\n";
-static OK: &str = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+static NOT_FOUND: &str = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
+static OK: &str = "HTTP/1.1 200 OK\r\n\r\n";
 
-fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, &str) {
+fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     let request_str = std::str::from_utf8(buffer).expect("Invalid UTF-8 sequence");
+    println!("{}", request_str);
     let parts: Vec<&str> = request_str.split_whitespace().collect();
     if parts[2] != "HTTP/1.1" {
-        return (BAD_REQUEST, "static/400.html")
+        return (BAD_REQUEST, "static/400.html".to_string())
     }
+    if parts[3] != "Host:" {
+        return (BAD_REQUEST, "static/400.html".to_string());
+    }
+    let host = parts[4];
+    let setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
+    let server_path: &str = setting.first()
+        .and_then(|setting| setting["web_site"].as_vec())
+        .and_then(|hosts| hosts.iter().find(|&x| x["host_name"].as_str() == Option::from(host)))
+        .map(|hosts| hosts["server_root_path"].as_str().unwrap()).unwrap();
+    println!("{}", server_path);
+
     match (parts[0], parts[1]) {
-        ("GET", "/") => (OK, "static/hello.html"),
-        _ => (NOT_FOUND, "static/404.html")
+        ("GET", "/") => (OK, server_path.to_string() + "/hello.html"),
+        _ => (NOT_FOUND, "static/404.html".to_string())
     }
 }
 

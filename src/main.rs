@@ -44,14 +44,14 @@ fn handle_connection(mut stream: std::net::TcpStream) {
 
     let contents = fs::read_to_string(filename).unwrap();
 
-    let response = format!("{}{}", status_line, contents);
+    let response = format!("{}\r\n\r\n{}", status_line, contents);
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
-static BAD_REQUEST: &str = "HTTP/1.1 400 BAD REQUEST\r\n\r\n";
-static NOT_FOUND: &str = "HTTP/1.1 404 NOT FOUND\r\n\r\n";
-static OK: &str = "HTTP/1.1 200 OK\r\n\r\n";
+static BAD_REQUEST: &str = "HTTP/1.1 400 BAD REQUEST";
+static NOT_FOUND: &str = "HTTP/1.1 404 NOT FOUND";
+static OK: &str = "HTTP/1.1 200 OK";
 
 fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     let request_str = std::str::from_utf8(buffer).expect("Invalid UTF-8 sequence");
@@ -65,6 +65,7 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     }
     let host = parts[4];
     let setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
+    // よくわからない！
     let server_path: &str = setting.first()
         .and_then(|setting| setting["web_site"].as_vec())
         .and_then(|hosts| hosts.iter().find(|&x| x["host_name"].as_str() == Option::from(host)))

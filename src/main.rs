@@ -35,6 +35,10 @@ fn main() {
     }
 }
 
+/// HTTPリクエストに対して具体的な処理を行う
+///
+/// # Arguments
+/// * `stream` - TCPのストリーム
 fn handle_connection(mut stream: std::net::TcpStream) {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).unwrap();
@@ -53,6 +57,14 @@ static BAD_REQUEST: &str = "HTTP/1.1 400 BAD REQUEST";
 static NOT_FOUND: &str = "HTTP/1.1 404 NOT FOUND";
 static OK: &str = "HTTP/1.1 200 OK";
 
+/// HTTPリクエストからレスポンスを生成する
+///
+/// # Arguments
+/// * `buffer` - HTTPリクエストのByte配列
+///
+/// # Returns
+/// * `status_line` - レスポンスの1行目
+/// * `filename` - 本文として返答するファイルのパス
 fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     let request_str = std::str::from_utf8(buffer).expect("Invalid UTF-8 sequence");
     println!("{}", request_str);
@@ -78,9 +90,10 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
 /// パースされたリクエストが正しい形式かチェックする
 ///
 /// # Arguments
+/// * `parts` - HTTPリクエストの文字列を半角スペースで分割したもの
 ///
-/// * `parts` - HTTPリクエストを半角スペースで分割したもの
-///
+/// # Returns
+/// * `res` - HTTPリクエストとしてバリデートされていればtrueを返す
 fn is_valid_request(mut parts: Vec<&str>) -> bool {
     if parts[2] != "HTTP/1.1" {
         return false

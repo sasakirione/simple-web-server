@@ -57,14 +57,8 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     let request_str = std::str::from_utf8(buffer).expect("Invalid UTF-8 sequence");
     println!("{}", request_str);
     let parts: Vec<&str> = request_str.split_whitespace().collect();
-    if parts[2] != "HTTP/1.1" {
+    if !is_valid_request(parts) {
         return (BAD_REQUEST, "static/400.html".to_string())
-    }
-    if parts[3] != "Host:" {
-        return (BAD_REQUEST, "static/400.html".to_string());
-    }
-    if parts[0] != "GET"{
-        return (BAD_REQUEST, "static/400.html".to_string());
     }
     let host = parts[4];
     let setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
@@ -79,6 +73,25 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
         ("GET", "/") => (OK, server_path.to_string() + "/hello.html"),
         _ => (NOT_FOUND, "static/404.html".to_string())
     }
+}
+
+/// パースされたリクエストが正しい形式かチェックする
+///
+/// # Arguments
+///
+/// * `parts` - HTTPリクエストを半角スペースで分割したもの
+///
+fn is_valid_request(mut parts: Vec<&str>) -> bool {
+    if parts[2] != "HTTP/1.1" {
+        return false
+    }
+    if parts[3] != "Host:" {
+        return false
+    }
+    if parts[0] != "GET" {
+        return false
+    }
+    return true
 }
 
 #[cfg(test)]

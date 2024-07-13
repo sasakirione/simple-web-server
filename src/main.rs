@@ -84,9 +84,6 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-/*    use std::io::Write;
-    use std::thread;
-    use std::time::Duration;*/
 
     #[test]
     fn test_get_routing_file_ok() {
@@ -114,20 +111,6 @@ mod tests {
         assert_eq!(filename, "static/404.html");
     }
 
-    fn set_setting() {
-        let setting = YamlLoader::load_from_str(r#"
-            web_site:
-              - host_name: localhost
-                server_root_path: "/test"
-        "#).unwrap();
-
-        {
-            let mut global_setting = SETTING.lock().unwrap();
-            global_setting.clear();
-            global_setting.extend(setting);
-        }
-    }
-
     #[test]
     fn test_get_routing_file_bad_request() {
         let mut buffer = [0; 1024];
@@ -141,31 +124,18 @@ mod tests {
         assert_eq!(filename, "static/400.html");
     }
 
-/*    #[test]
-    fn test_handle_connection() {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = listener.local_addr().unwrap().port();
-        let handle = thread::spawn(move || {
-            for stream in listener.incoming() {
-                let stream = stream.unwrap();
-                handle_connection(stream);
-            }
-        });
+    fn set_setting() {
+        let setting = YamlLoader::load_from_str(r#"
+            web_site:
+              - host_name: localhost
+                server_root_path: "/test"
+        "#).unwrap();
 
-        thread::sleep(Duration::from_millis(100));
-        set_setting();
-
-        let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
-        let request = b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
-        stream.write_all(request).unwrap();
-
-        let mut buffer = [0; 1024];
-        stream.read(&mut buffer).unwrap();
-
-        let response = std::str::from_utf8(&buffer).unwrap();
-        assert!(response.contains("HTTP/1.1 200 OK"));
-
-        handle.join().unwrap();
-    }*/
+        {
+            let mut global_setting = SETTING.lock().unwrap();
+            global_setting.clear();
+            global_setting.extend(setting);
+        }
+    }
 }
 

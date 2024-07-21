@@ -69,7 +69,7 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     let request_str = std::str::from_utf8(buffer).expect("Invalid UTF-8 sequence");
     println!("{}", request_str);
     let parts: Vec<&str> = request_str.split_whitespace().collect();
-    if !is_valid_request(parts) {
+    if !is_valid_request(&parts) {
         return (BAD_REQUEST, "static/400.html".to_string())
     }
     let host = parts[4];
@@ -94,7 +94,7 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
 ///
 /// # Returns
 /// * `res` - HTTPリクエストとしてバリデートされていればtrueを返す
-fn is_valid_request(mut parts: Vec<&str>) -> bool {
+fn is_valid_request(parts: &Vec<&str>) -> bool {
     if parts[2] != "HTTP/1.1" {
         return false
     }

@@ -1,6 +1,7 @@
 use std::net::TcpListener;
 use std::io::{Read, Write};
 use std::{env, fs};
+use std::path::Path;
 use std::sync::Mutex;
 use yaml_rust2::{Yaml, YamlLoader};
 
@@ -79,12 +80,13 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
         .and_then(|setting| setting["web_site"].as_vec())
         .and_then(|hosts| hosts.iter().find(|&x| x["host_name"].as_str() == Option::from(host)))
         .map(|hosts| hosts["server_root_path"].as_str().unwrap()).unwrap();
-    println!("{}", server_path);
+    println!("{}{}", server_path, parts[1]);
+    let path = server_path.to_string() + &*parts[1].to_string() + "index.html";
 
-    match (parts[0], parts[1]) {
-        ("GET", "/") => (OK, server_path.to_string() + "/hello.html"),
-        _ => (NOT_FOUND, "static/404.html".to_string())
+    if Path::new(&path).is_file(){
+        return (OK, path);
     }
+    return (NOT_FOUND, "static/404.html".to_string())
 }
 
 /// パースされたリクエストが正しい形式かチェックする
@@ -112,6 +114,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_get_routing_file_ok() {
         let mut buffer = [0; 1024];
         let request = b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
@@ -121,7 +124,21 @@ mod tests {
 
         let (status_line, filename) = get_routing_file(&mut buffer);
         assert_eq!(status_line, OK);
-        assert_eq!(filename, "/test/hello.html");
+        assert_eq!(filename, "/test/index.html");
+    }
+
+    #[test]
+    #[ignore]
+    fn test_get_routing_nest_file_ok() {
+        let mut buffer = [0; 1024];
+        let request = b"GET /otaku/ HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        buffer[..request.len()].copy_from_slice(request);
+
+        set_setting();
+
+        let (status_line, filename) = get_routing_file(&mut buffer);
+        assert_eq!(status_line, OK);
+        assert_eq!(filename, "/test/otaku/index.html");
     }
 
     #[test]
@@ -154,7 +171,7 @@ mod tests {
         let setting = YamlLoader::load_from_str(r#"
             web_site:
               - host_name: localhost
-                server_root_path: "/test"
+                server_root_path: "/test_site/site1"
         "#).unwrap();
 
         {

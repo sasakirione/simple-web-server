@@ -25,3 +25,9 @@
 git clone https://github.com/sasakirione/simple-web-server.git
 cd rust-web-server
 ```
+
+## 注意
+ - こちらのプロジェクトは私の自己学習を目的としています
+
+## License
+This project is licensed under the MIT License, see the LICENSE.txt file for details

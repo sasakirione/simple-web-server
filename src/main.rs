@@ -1,8 +1,9 @@
-use std::net::TcpListener;
-use std::io::{Read, Write};
 use std::{env, fs};
+use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Mutex;
+
 use yaml_rust2::{Yaml, YamlLoader};
 
 static SETTING: Mutex<Vec<Yaml>> = Mutex::new(Vec::new());
@@ -81,7 +82,10 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
         .and_then(|hosts| hosts.iter().find(|&x| x["host_name"].as_str() == Option::from(host)))
         .map(|hosts| hosts["server_root_path"].as_str().unwrap()).unwrap();
     println!("{}{}", server_path, parts[1]);
-    let path = server_path.to_string() + &*parts[1].to_string() + "index.html";
+    let has_end_slash = parts[1].ends_with("/");
+    let path = if has_end_slash
+        { format!("{}{}index.html", server_path, parts[1]) } else
+        { format!("{}{}/index.html", server_path, parts[1]) };
 
     if Path::new(&path).is_file(){
         return (OK, path);

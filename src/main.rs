@@ -1,3 +1,7 @@
+#[macro_use]
+extern crate log;
+extern crate env_logger as logger;
+
 use std::{env, fs};
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -5,10 +9,14 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use yaml_rust2::{Yaml, YamlLoader};
+use log::Level;
 
 static SETTING: Mutex<Vec<Yaml>> = Mutex::new(Vec::new());
 
 fn main() {
+    env::set_var("ECHIZEN_S", "trace");
+    logger::init();
+
     let args: Vec<String> = env::args().collect();
     // 設定ファイルを読み込む
     let mut docs = if args.iter().any(|x| x.contains("yaml")) {
@@ -28,7 +36,7 @@ fn main() {
 
     // ソケットをバインドして待ち受け
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-    println!("Server is running on port 7878");
+    info!("start poling at 127.0.0.1:7878");
 
     // 接続の受け入れと処理
     for stream in listener.incoming() {
@@ -72,6 +80,7 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     println!("{}", request_str);
     let parts: Vec<&str> = request_str.split_whitespace().collect();
     if !is_valid_request(&parts) {
+        debug!("Response: 400");
         return (BAD_REQUEST, "static/400.html".to_string())
     }
     let host = parts[4];
@@ -81,15 +90,17 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
         .and_then(|setting| setting["web_site"].as_vec())
         .and_then(|hosts| hosts.iter().find(|&x| x["host_name"].as_str() == Option::from(host)))
         .map(|hosts| hosts["server_root_path"].as_str().unwrap()).unwrap();
-    println!("{}{}", server_path, parts[1]);
+
     let has_end_slash = parts[1].ends_with("/");
     let path = if has_end_slash
         { format!("{}{}index.html", server_path, parts[1]) } else
         { format!("{}{}/index.html", server_path, parts[1]) };
 
     if Path::new(&path).is_file(){
+        debug!("Method: GET, Routing Path: {}, Response: 200", path);
         return (OK, path);
     }
+    debug!("Method: GET, Routing Path: {}, Response: 404", path);
     return (NOT_FOUND, "static/404.html".to_string())
 }
 

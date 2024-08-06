@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 yaml-rust2 = "0.8.1"
+log = "0.4"
+env_logger = "0.11.5"

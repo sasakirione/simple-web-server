@@ -2,14 +2,13 @@
 extern crate log;
 extern crate env_logger as logger;
 
-use std::{env, fs};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::Path;
 use std::sync::Mutex;
+use std::{env, fs};
 
 use yaml_rust2::{Yaml, YamlLoader};
-use log::Level;
 
 static SETTING: Mutex<Vec<Yaml>> = Mutex::new(Vec::new());
 
@@ -21,7 +20,8 @@ fn main() {
     // 設定ファイルを読み込む
     let mut docs = if args.iter().any(|x| x.contains("yaml")) {
         println!("設定ファイルを読み込みます");
-        let config_file = fs::read_to_string(args.iter().find(|x| x.contains("yaml")).unwrap()).expect("設定ファイルの読み込みに失敗しました");
+        let config_file = fs::read_to_string(args.iter().find(|x| x.contains("yaml")).unwrap())
+            .expect("設定ファイルの読み込みに失敗しました");
         let config_file2 = config_file.as_str();
         YamlLoader::load_from_str(&config_file2).expect("設定ファイルの読み込みに失敗しました")
     } else {
@@ -30,7 +30,9 @@ fn main() {
     };
 
     {
-        let mut setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
+        let mut setting = SETTING
+            .lock()
+            .expect("設定ファイルの読み込みに失敗しました");
         setting.append(&mut docs);
     }
 
@@ -81,27 +83,37 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
     let parts: Vec<&str> = request_str.split_whitespace().collect();
     if !is_valid_request(&parts) {
         debug!("Response: 400");
-        return (BAD_REQUEST, "static/400.html".to_string())
+        return (BAD_REQUEST, "static/400.html".to_string());
     }
     let host = parts[4];
-    let setting = SETTING.lock().expect("設定ファイルの読み込みに失敗しました");
+    let setting = SETTING
+        .lock()
+        .expect("設定ファイルの読み込みに失敗しました");
     // よくわからない！
-    let server_path: &str = setting.first()
+    let server_path: &str = setting
+        .first()
         .and_then(|setting| setting["web_site"].as_vec())
-        .and_then(|hosts| hosts.iter().find(|&x| x["host_name"].as_str() == Option::from(host)))
-        .map(|hosts| hosts["server_root_path"].as_str().unwrap()).unwrap();
+        .and_then(|hosts| {
+            hosts
+                .iter()
+                .find(|&x| x["host_name"].as_str() == Option::from(host))
+        })
+        .map(|hosts| hosts["server_root_path"].as_str().unwrap())
+        .unwrap();
 
     let has_end_slash = parts[1].ends_with("/");
-    let path = if has_end_slash
-        { format!("{}{}index.html", server_path, parts[1]) } else
-        { format!("{}{}/index.html", server_path, parts[1]) };
+    let path = if has_end_slash {
+        format!("{}{}index.html", server_path, parts[1])
+    } else {
+        format!("{}{}/index.html", server_path, parts[1])
+    };
 
-    if Path::new(&path).is_file(){
+    if Path::new(&path).is_file() {
         debug!("Method: GET, Routing Path: {}, Response: 200", path);
         return (OK, path);
     }
     debug!("Method: GET, Routing Path: {}, Response: 404", path);
-    return (NOT_FOUND, "static/404.html".to_string())
+    (NOT_FOUND, "static/404.html".to_string())
 }
 
 /// パースされたリクエストが正しい形式かチェックする
@@ -113,15 +125,15 @@ fn get_routing_file(buffer: &mut [u8; 1024]) -> (&str, String) {
 /// * `res` - HTTPリクエストとしてバリデートされていればtrueを返す
 fn is_valid_request(parts: &Vec<&str>) -> bool {
     if parts[2] != "HTTP/1.1" {
-        return false
+        return false;
     }
     if parts[3] != "Host:" {
-        return false
+        return false;
     }
     if parts[0] != "GET" {
-        return false
+        return false;
     }
-    return true
+    true
 }
 
 #[cfg(test)]
@@ -183,11 +195,14 @@ mod tests {
     }
 
     fn set_setting() {
-        let setting = YamlLoader::load_from_str(r#"
+        let setting = YamlLoader::load_from_str(
+            r#"
             web_site:
               - host_name: localhost
                 server_root_path: "/test_site/site1"
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         {
             let mut global_setting = SETTING.lock().unwrap();
@@ -196,4 +211,3 @@ mod tests {
         }
     }
 }
-

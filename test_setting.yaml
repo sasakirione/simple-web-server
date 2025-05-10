@@ -3,4 +3,5 @@ web_site:
     server_root_path: /Users/sasakirione/repository/rust_web_server/test_site/site1
   - host_name: site2.sasakirione.com
     server_root_path: /Users/sasakirione/repository/rust_web_server/test_site/site2
+num_threads: 8
 setting1: true

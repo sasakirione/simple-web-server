@@ -1,5 +1,6 @@
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
+use log::error;
 
 type Job = Box<dyn FnOnce() + Send + 'static>;
 
@@ -43,7 +44,19 @@ impl ThreadPool {
         F: FnOnce() + Send + 'static,
     {
         let job = Box::new(f);
-        self.sender.as_ref().unwrap().send(job).unwrap();
+
+        // Handle the case where sender is None
+        match self.sender.as_ref() {
+            Some(sender) => {
+                // Handle errors from send()
+                if let Err(e) = sender.send(job) {
+                    error!("Failed to send job to thread pool: {}", e);
+                }
+            },
+            None => {
+                error!("Thread pool sender is None, cannot execute job");
+            }
+        }
     }
 }
 
@@ -55,7 +68,10 @@ impl Drop for ThreadPool {
         // Wait for all workers to finish
         for worker in &mut self.workers {
             if let Some(thread) = worker.thread.take() {
-                thread.join().unwrap();
+                // Handle errors from thread.join()
+                if let Err(e) = thread.join() {
+                    error!("Failed to join worker thread {}: {:?}", worker.id, e);
+                }
             }
         }
     }
@@ -71,7 +87,14 @@ impl Worker {
     fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
         let thread = thread::spawn(move || loop {
             // Lock the receiver and try to get a job
-            let message = receiver.lock().unwrap().recv();
+            let message = match receiver.lock() {
+                Ok(lock) => lock.recv(),
+                Err(e) => {
+                    // Mutex is poisoned, log error and exit thread
+                    error!("Failed to lock receiver in worker thread: {:?}", e);
+                    break;
+                }
+            };
 
             match message {
                 Ok(job) => {

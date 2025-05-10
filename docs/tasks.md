@@ -4,10 +4,10 @@ This document contains a prioritized list of tasks for improving the Rust Web Se
 
 ## Error Handling and Robustness
 
-1. [ ] Replace unwrap() calls with proper error handling throughout the codebase
-   - [ ] In thread_pool.rs (line 46, 58, 74)
-   - [ ] In server.rs (various locations)
-   - [ ] In config.rs (line 31)
+1. [x] Replace unwrap() calls with proper error handling throughout the codebase
+   - [x] In thread_pool.rs (line 46, 58, 74)
+   - [x] In server.rs (various locations)
+   - [x] In config.rs (line 31)
 
 2. [ ] Implement graceful shutdown mechanism for the server
    - [ ] Add signal handling (SIGINT, SIGTERM)

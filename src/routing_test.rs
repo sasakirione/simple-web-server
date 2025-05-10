@@ -282,4 +282,27 @@ mod tests {
         });
         config
     }
+
+    #[test]
+    fn test_routing_static_file() {
+        // Create a test request with a path that includes a file extension
+        let request = Request {
+            method: Method::GET,
+            path: "/styles.css".to_string(),
+            version: "HTTP/1.1".to_string(),
+            host: "localhost".to_string(),
+        };
+
+        // Create a test configuration
+        let config = create_test_config();
+
+        // Create a router
+        let router = Router::new(config);
+
+        // Route the request
+        let result = router.route(&request);
+
+        // Check the result - should not append index.html for paths with file extensions
+        assert_eq!(result.file_path, "/test_site/site1/styles.css");
+    }
 }

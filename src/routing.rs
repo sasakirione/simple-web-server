@@ -162,12 +162,18 @@ impl Router {
 
     // Build a file path from website configuration and request path
     fn build_file_path(&self, website: &WebSite, path: &str) -> String {
-        let has_end_slash = path.ends_with('/');
-
-        if has_end_slash {
-            format!("{}{}index.html", website.server_root_path, path)
+        // Check if the path has a file extension
+        if path.contains('.') && !path.ends_with('/') {
+            // Serve the file directly
+            format!("{}{}", website.server_root_path, path)
         } else {
-            format!("{}{}/index.html", website.server_root_path, path)
+            // Serve index.html
+            let has_end_slash = path.ends_with('/');
+            if has_end_slash {
+                format!("{}{}index.html", website.server_root_path, path)
+            } else {
+                format!("{}{}/index.html", website.server_root_path, path)
+            }
         }
     }
 }

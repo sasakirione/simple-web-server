@@ -7,9 +7,10 @@
 ## 機能
 
 - HTTP GETリクエストの処理
-- 静的ファイルの配信
+- 静的ファイルの配信（HTML, CSS, JavaScript, 画像など）
 - 基本的なルーティング
 - マルチスレッド処理
+- Content-Typeヘッダーの自動設定
 
 ## 前提条件
 
@@ -42,6 +43,27 @@ num_threads: 8  # スレッドプールのスレッド数（省略可、デフ�
 
 - `web_site`: ホスト名とそのルートディレクトリのマッピング
 - `num_threads`: サーバーが使用するスレッド数。省略した場合はCPUコア数が使用されます。
+
+## 静的ファイルの配信
+
+サーバーは以下のような静的ファイルを配信できます：
+
+- HTML (.html) - text/html
+- CSS (.css) - text/css
+- JavaScript (.js) - application/javascript
+- JSON (.json) - application/json
+- 画像ファイル:
+  - PNG (.png) - image/png
+  - JPEG (.jpg, .jpeg) - image/jpeg
+  - GIF (.gif) - image/gif
+  - SVG (.svg) - image/svg+xml
+  - アイコン (.ico) - image/x-icon
+- PDF (.pdf) - application/pdf
+- テキストファイル (.txt) - text/plain
+- その他のファイル - application/octet-stream
+
+ファイル拡張子を持つパス（例：`/styles.css`、`/images/logo.png`）にアクセスすると、サーバーは対応するファイルを直接提供します。
+拡張子のないパス（例：`/about`、`/products`）にアクセスすると、サーバーはそのディレクトリの `index.html` ファイルを提供します。
 
 ## 注意
  - こちらのプロジェクトは私の自己学習を目的としています

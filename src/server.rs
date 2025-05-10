@@ -1,6 +1,7 @@
 use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::path::Path;
 
 use log::{debug, error, info};
 
@@ -22,6 +23,25 @@ impl Server {
         let router = Router::new(config.clone());
         let thread_pool = ThreadPool::new(config.num_threads);
         Server { config, router, thread_pool }
+    }
+
+    /// Determine content type based on file extension
+    fn get_content_type(file_path: &str) -> &'static str {
+        let path = Path::new(file_path);
+        match path.extension().and_then(|ext| ext.to_str()) {
+            Some("html") => "text/html",
+            Some("css") => "text/css",
+            Some("js") => "application/javascript",
+            Some("json") => "application/json",
+            Some("png") => "image/png",
+            Some("jpg") | Some("jpeg") => "image/jpeg",
+            Some("gif") => "image/gif",
+            Some("svg") => "image/svg+xml",
+            Some("ico") => "image/x-icon",
+            Some("pdf") => "application/pdf",
+            Some("txt") => "text/plain",
+            _ => "application/octet-stream", // Default binary type
+        }
     }
 
     /// Start the server
@@ -77,8 +97,11 @@ impl Server {
         // Route the request
         let routing_result = router.route(&request);
 
-        // Read the file
-        let contents = match fs::read_to_string(&routing_result.file_path) {
+        // Determine content type based on file extension
+        let content_type = Self::get_content_type(&routing_result.file_path);
+
+        // Read the file as binary
+        let contents = match fs::read(&routing_result.file_path) {
             Ok(contents) => contents,
             Err(e) => {
                 error!("Error reading file {}: {}", routing_result.file_path, e);
@@ -91,12 +114,20 @@ impl Server {
             }
         };
 
-        // Build the response
-        let response = format!("{}\r\n\r\n{}", routing_result.status_line, contents);
+        // Build the response with Content-Type header
+        let response_header = format!("{}\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n", 
+            routing_result.status_line, 
+            content_type,
+            contents.len());
 
-        // Send the response
-        stream.write_all(response.as_bytes())
+        // Send the response header
+        stream.write_all(response_header.as_bytes())
             .map_err(|e| Error::Io(e))?;
+
+        // Send the file content
+        stream.write_all(&contents)
+            .map_err(|e| Error::Io(e))?;
+
         stream.flush()
             .map_err(|e| Error::Io(e))?;
 

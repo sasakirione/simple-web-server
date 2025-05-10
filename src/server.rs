@@ -53,11 +53,6 @@ impl Server {
         Ok(())
     }
 
-    /// Handle a client connection
-    fn handle_connection(&self, mut stream: TcpStream) -> Result<()> {
-        Self::handle_connection_static(stream, &self.router)
-    }
-
     /// Static method to handle a client connection
     fn handle_connection_static(mut stream: TcpStream, router: &Router) -> Result<()> {
         // Read the request

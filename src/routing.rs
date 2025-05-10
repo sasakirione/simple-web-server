@@ -38,7 +38,7 @@ impl From<&str> for Method {
 pub struct Request {
     /// HTTP method
     pub method: Method,
-    /// Request path
+    /// Request a path
     pub path: String,
     /// HTTP version
     pub version: String,
@@ -119,7 +119,7 @@ impl Router {
 
     /// Route an HTTP request
     pub fn route(&self, request: &Request) -> RoutingResult {
-        // Check if request is valid
+        // Check if the request is valid
         if !request.is_valid() {
             return RoutingResult {
                 status_line: HttpStatus::BAD_REQUEST,
@@ -127,15 +127,15 @@ impl Router {
             };
         }
 
-        // Find matching website
+        // Find a matching website
         let website = self.find_website(&request.host);
 
         match website {
             Some(site) => {
-                // Build file path
+                // Build a file path
                 let file_path = self.build_file_path(&site, &request.path);
 
-                // Check if file exists
+                // Check if a file exists
                 if Path::new(&file_path).is_file() {
                     RoutingResult {
                         status_line: HttpStatus::OK,
@@ -160,7 +160,7 @@ impl Router {
         self.config.websites.iter().find(|site| site.host_name == host)
     }
 
-    // Build file path from website configuration and request path
+    // Build a file path from website configuration and request path
     fn build_file_path(&self, website: &WebSite, path: &str) -> String {
         let has_end_slash = path.ends_with('/');
 

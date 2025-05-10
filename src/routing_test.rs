@@ -162,6 +162,117 @@ mod tests {
         assert_eq!(request.host, "localhost");
     }
 
+    #[test]
+    fn test_request_parsing_with_query_params() {
+        // Create a test request buffer with query parameters
+        let mut buffer = [0; 1024];
+        let request = b"GET /search?q=rust&page=1 HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        buffer[..request.len()].copy_from_slice(request);
+
+        // Parse the request
+        let request = Request::parse(&buffer).unwrap();
+
+        // Check the request
+        assert_eq!(request.method, Method::GET);
+        assert_eq!(request.path, "/search?q=rust&page=1");
+        assert_eq!(request.version, "HTTP/1.1");
+        assert_eq!(request.host, "localhost");
+    }
+
+    #[test]
+    fn test_request_parsing_with_multiple_headers() {
+        // Create a test request buffer with multiple headers
+        let mut buffer = [0; 1024];
+        let request = b"GET / HTTP/1.1\r\nHost: localhost\r\nUser-Agent: Mozilla\r\nAccept: text/html\r\n\r\n";
+        buffer[..request.len()].copy_from_slice(request);
+
+        // Parse the request
+        let request = Request::parse(&buffer).unwrap();
+
+        // Check the request
+        assert_eq!(request.method, Method::GET);
+        assert_eq!(request.path, "/");
+        assert_eq!(request.version, "HTTP/1.1");
+        assert_eq!(request.host, "localhost");
+    }
+
+    #[test]
+    fn test_request_parsing_invalid_utf8() {
+        // Create a test request buffer with invalid UTF-8
+        let mut buffer = [0; 1024];
+        buffer[0] = 0xFF; // Invalid UTF-8 byte
+
+        // Parse the request
+        let result = Request::parse(&buffer);
+
+        // Check that parsing failed
+        assert!(result.is_err());
+        match result {
+            Err(crate::error::Error::Http(msg)) => {
+                assert!(msg.contains("Invalid UTF-8"));
+            }
+            _ => panic!("Expected HTTP error"),
+        }
+    }
+
+    #[test]
+    fn test_request_parsing_empty_request() {
+        // Create an empty request buffer
+        let buffer = [0; 0];
+
+        // Parse the request
+        let result = Request::parse(&buffer);
+
+        // Check that parsing failed
+        assert!(result.is_err());
+        match result {
+            Err(crate::error::Error::Http(msg)) => {
+                assert!(msg.contains("Empty request"));
+            }
+            _ => panic!("Expected HTTP error"),
+        }
+    }
+
+    #[test]
+    fn test_request_parsing_invalid_request_line() {
+        // Create a test request buffer with an invalid request line
+        let mut buffer = [0; 1024];
+        let request = b"INVALID\r\nHost: localhost\r\n\r\n";
+        buffer[..request.len()].copy_from_slice(request);
+
+        // Parse the request
+        let result = Request::parse(&buffer);
+
+        // Check that parsing failed
+        assert!(result.is_err());
+        match result {
+            Err(crate::error::Error::Http(msg)) => {
+                assert!(msg.contains("Invalid request line"));
+            }
+            _ => panic!("Expected HTTP error"),
+        }
+    }
+
+    #[test]
+    fn test_request_parsing_missing_host() {
+        // Create a test request buffer without a Host header
+        let mut buffer = [0; 1024];
+        let request = b"GET / HTTP/1.1\r\nUser-Agent: Mozilla\r\n\r\n";
+        buffer[..request.len()].copy_from_slice(request);
+
+        // Parse the request
+        let result = Request::parse(&buffer);
+
+        // Check that parsing failed
+        assert!(result.is_err());
+        match result {
+            Err(crate::error::Error::Http(msg)) => {
+                assert!(msg.contains("Missing Host header"));
+            }
+            _ => panic!("Expected HTTP error"),
+        }
+    }
+
     // Helper function to create a test configuration
     fn create_test_config() -> Config {
         let mut config = Config::default();

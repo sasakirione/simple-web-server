@@ -7,6 +7,12 @@ use log::info;
 // Include test modules
 #[cfg(test)]
 mod routing_test;
+#[cfg(test)]
+mod config_test;
+#[cfg(test)]
+mod thread_pool_test;
+#[cfg(test)]
+mod server_test;
 
 // Import modules
 mod config;

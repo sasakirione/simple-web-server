@@ -10,8 +10,6 @@ mod routing_test;
 #[cfg(test)]
 mod config_test;
 #[cfg(test)]
-mod thread_pool_test;
-#[cfg(test)]
 mod server_test;
 
 // Import modules
@@ -19,13 +17,13 @@ mod config;
 mod error;
 mod routing;
 mod server;
-mod thread_pool;
 
 use config::Config;
 use server::Server;
 
 /// Main entry point for the application
-fn main() {
+#[tokio::main]
+async fn main() {
     // Initialize logging
     env::set_var("RUST_LOG", "trace");
     env_logger::init();
@@ -50,7 +48,7 @@ fn main() {
 
     // Create and start the server
     let server = Server::new(config);
-    if let Err(e) = server.start() {
+    if let Err(e) = server.start().await {
         eprintln!("Server error: {}", e);
         process::exit(1);
     }

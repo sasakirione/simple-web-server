@@ -26,10 +26,10 @@ This document contains a prioritized list of tasks for improving the Rust Web Se
 
 ## Architecture and Design
 
-5. [ ] Refactor the server implementation to use async/await
-   - [ ] Replace thread pool with async runtime (tokio)
-   - [ ] Implement non-blocking I/O for better performance
-   - [ ] Update API to use futures
+5. [x] Refactor the server implementation to use async/await
+   - [x] Replace thread pool with async runtime (tokio)
+   - [x] Implement non-blocking I/O for better performance
+   - [x] Update API to use futures
 
 6. [ ] Implement middleware system for request/response processing
    - [ ] Create middleware trait

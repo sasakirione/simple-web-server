@@ -1,28 +1,27 @@
-use std::fs;
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
 use std::path::Path;
+use std::sync::Arc;
 
 use log::{debug, error, info};
+use tokio::fs;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::runtime::Runtime;
 
 use crate::config::Config;
 use crate::error::{Error, Result};
 use crate::routing::{Request, Router};
-use crate::thread_pool::ThreadPool;
 
 /// HTTP server
 pub struct Server {
     config: Config,
-    router: Router,
-    thread_pool: ThreadPool,
+    router: Arc<Router>,
 }
 
 impl Server {
     /// Create a new server with the given configuration
     pub fn new(config: Config) -> Self {
-        let router = Router::new(config.clone());
-        let thread_pool = ThreadPool::new(config.num_threads);
-        Server { config, router, thread_pool }
+        let router = Arc::new(Router::new(config.clone()));
+        Server { config, router }
     }
 
     /// Determine content type based on file extension
@@ -45,21 +44,23 @@ impl Server {
     }
 
     /// Start the server
-    pub fn start(&self) -> Result<()> {
+    pub async fn start(&self) -> Result<()> {
         // Bind to the address
         let listener = TcpListener::bind(&self.config.server_address)
+            .await
             .map_err(|e| Error::Io(e))?;
 
         info!("Server started at {} with {} threads", self.config.server_address, self.config.num_threads);
 
         // Accept connections
-        for stream in listener.incoming() {
-            match stream {
-                Ok(stream) => {
-                    let router = self.router.clone();
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => {
+                    let router = Arc::clone(&self.router);
 
-                    self.thread_pool.execute(move || {
-                        if let Err(e) = Self::handle_connection_static(stream, &router) {
+                    // Spawn a new task to handle the connection
+                    tokio::spawn(async move {
+                        if let Err(e) = Self::handle_connection(stream, router).await {
                             error!("Error handling connection: {}", e);
                         }
                     });
@@ -69,26 +70,24 @@ impl Server {
                 }
             }
         }
-
-        Ok(())
     }
 
-    /// Static method to handle a client connection
-    fn handle_connection_static(mut stream: TcpStream, router: &Router) -> Result<()> {
+    /// Async method to handle a client connection
+    async fn handle_connection(mut stream: TcpStream, router: Arc<Router>) -> Result<()> {
         // Read the request
         let mut buffer = [0; 1024];
-        stream.read(&mut buffer)
+        let n = stream.read(&mut buffer).await
             .map_err(|e| Error::Io(e))?;
 
         // Parse the request
-        let request = match Request::parse(&buffer) {
+        let request = match Request::parse(&buffer[..n]) {
             Ok(req) => req,
             Err(e) => {
                 debug!("Invalid request: {}", e);
                 let response = format!("{}\r\n\r\n", "HTTP/1.1 400 BAD REQUEST");
-                stream.write_all(response.as_bytes())
+                stream.write_all(response.as_bytes()).await
                     .map_err(|e| Error::Io(e))?;
-                stream.flush()
+                stream.flush().await
                     .map_err(|e| Error::Io(e))?;
                 return Ok(());
             }
@@ -101,14 +100,14 @@ impl Server {
         let content_type = Self::get_content_type(&routing_result.file_path);
 
         // Read the file as binary
-        let contents = match fs::read(&routing_result.file_path) {
+        let contents = match fs::read(&routing_result.file_path).await {
             Ok(contents) => contents,
             Err(e) => {
                 error!("Error reading file {}: {}", routing_result.file_path, e);
                 let response = format!("{}\r\n\r\n", "HTTP/1.1 500 INTERNAL SERVER ERROR");
-                stream.write_all(response.as_bytes())
+                stream.write_all(response.as_bytes()).await
                     .map_err(|e| Error::Io(e))?;
-                stream.flush()
+                stream.flush().await
                     .map_err(|e| Error::Io(e))?;
                 return Ok(());
             }
@@ -121,14 +120,14 @@ impl Server {
             contents.len());
 
         // Send the response header
-        stream.write_all(response_header.as_bytes())
+        stream.write_all(response_header.as_bytes()).await
             .map_err(|e| Error::Io(e))?;
 
         // Send the file content
-        stream.write_all(&contents)
+        stream.write_all(&contents).await
             .map_err(|e| Error::Io(e))?;
 
-        stream.flush()
+        stream.flush().await
             .map_err(|e| Error::Io(e))?;
 
         debug!("Response: {}, File: {}", routing_result.status_line, routing_result.file_path);

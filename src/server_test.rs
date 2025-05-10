@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Write};
+    use std::pin::Pin;
     use std::sync::{Arc, Mutex};
+    use std::task::{Context, Poll};
+
+    use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
     use crate::config::{Config, WebSite};
     use crate::error::{Error, Result};
@@ -11,6 +14,7 @@ mod tests {
     // Mock TcpStream for testing
     struct MockTcpStream {
         read_data: Vec<u8>,
+        read_pos: usize,
         write_data: Arc<Mutex<Vec<u8>>>,
     }
 
@@ -18,6 +22,7 @@ mod tests {
         fn new(read_data: Vec<u8>) -> Self {
             MockTcpStream {
                 read_data,
+                read_pos: 0,
                 write_data: Arc::new(Mutex::new(Vec::new())),
             }
         }
@@ -27,41 +32,64 @@ mod tests {
         }
     }
 
-    impl Read for MockTcpStream {
-        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-            let len = std::cmp::min(self.read_data.len(), buf.len());
-            buf[..len].copy_from_slice(&self.read_data[..len]);
-            Ok(len)
+    impl AsyncRead for MockTcpStream {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            let remaining = &self.read_data[self.read_pos..];
+            let to_read = std::cmp::min(remaining.len(), buf.remaining());
+
+            if to_read > 0 {
+                buf.put_slice(&remaining[..to_read]);
+                self.read_pos += to_read;
+            }
+
+            Poll::Ready(Ok(()))
         }
     }
 
-    impl Write for MockTcpStream {
-        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+    impl AsyncWrite for MockTcpStream {
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            buf: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
             self.write_data.lock().unwrap().extend_from_slice(buf);
-            Ok(buf.len())
+            Poll::Ready(Ok(buf.len()))
         }
 
-        fn flush(&mut self) -> std::io::Result<()> {
-            Ok(())
+        fn poll_flush(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_shutdown(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
         }
     }
 
-    // Test helper function that mimics the server's handle_connection_static function
-    fn test_handle_connection(stream: &mut MockTcpStream, router: &Router) -> Result<()> {
+    // Test helper function that mimics the server's handle_connection function
+    async fn test_handle_connection(stream: &mut MockTcpStream, router: &Router) -> Result<()> {
         // Read the request
         let mut buffer = [0; 1024];
-        stream.read(&mut buffer)
-            .map_err(|e| Error::Io(e))?;
+        let mut read_buf = ReadBuf::new(&mut buffer);
+        Pin::new(&mut *stream).poll_read(&mut Context::from_waker(futures::task::noop_waker_ref()), &mut read_buf).map_err(|e| Error::Io(e))?;
+        let n = read_buf.filled().len();
 
         // Parse the request
-        let request = match Request::parse(&buffer) {
+        let request = match Request::parse(&buffer[..n]) {
             Ok(req) => req,
             Err(_) => {
                 let response = format!("{}\r\n\r\n", "HTTP/1.1 400 BAD REQUEST");
-                stream.write_all(response.as_bytes())
-                    .map_err(|e| Error::Io(e))?;
-                stream.flush()
-                    .map_err(|e| Error::Io(e))?;
+                Pin::new(&mut *stream).poll_write(&mut Context::from_waker(futures::task::noop_waker_ref()), response.as_bytes()).map_err(|e| Error::Io(e))?;
+                Pin::new(&mut *stream).poll_flush(&mut Context::from_waker(futures::task::noop_waker_ref())).map_err(|e| Error::Io(e))?;
                 return Ok(());
             }
         };
@@ -76,16 +104,14 @@ mod tests {
         let response = format!("{}\r\n\r\n{}", routing_result.status_line, contents);
 
         // Send the response
-        stream.write_all(response.as_bytes())
-            .map_err(|e| Error::Io(e))?;
-        stream.flush()
-            .map_err(|e| Error::Io(e))?;
+        Pin::new(&mut *stream).poll_write(&mut Context::from_waker(futures::task::noop_waker_ref()), response.as_bytes()).map_err(|e| Error::Io(e))?;
+        Pin::new(&mut *stream).poll_flush(&mut Context::from_waker(futures::task::noop_waker_ref())).map_err(|e| Error::Io(e))?;
 
         Ok(())
     }
 
-    #[test]
-    fn test_handle_connection_valid_request() {
+    #[tokio::test]
+    async fn test_handle_connection_valid_request() {
         // Create a mock request
         let request = b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n";
         let mut stream = MockTcpStream::new(request.to_vec());
@@ -101,7 +127,7 @@ mod tests {
         let router = Router::new(config);
 
         // Handle the connection
-        let result = test_handle_connection(&mut stream, &router);
+        let result = test_handle_connection(&mut stream, &router).await;
 
         // Check that the connection was handled successfully
         assert!(result.is_ok());
@@ -114,8 +140,8 @@ mod tests {
         assert!(response.contains(HttpStatus::OK) || response.contains(HttpStatus::NOT_FOUND));
     }
 
-    #[test]
-    fn test_handle_connection_invalid_request() {
+    #[tokio::test]
+    async fn test_handle_connection_invalid_request() {
         // Create an invalid request (missing Host header)
         let request = b"GET / HTTP/1.1\r\n\r\n";
         let mut stream = MockTcpStream::new(request.to_vec());
@@ -127,7 +153,7 @@ mod tests {
         let router = Router::new(config);
 
         // Handle the connection
-        let result = test_handle_connection(&mut stream, &router);
+        let result = test_handle_connection(&mut stream, &router).await;
 
         // Check that the connection was handled successfully (even though the request was invalid)
         assert!(result.is_ok());

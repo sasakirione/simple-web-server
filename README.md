@@ -9,7 +9,7 @@
 - HTTP GETリクエストの処理
 - 静的ファイルの配信（HTML, CSS, JavaScript, 画像など）
 - 基本的なルーティング
-- マルチスレッド処理
+- 非同期処理（async/await with tokio）
 - Content-Typeヘッダーの自動設定
 
 ## 前提条件
@@ -38,11 +38,11 @@ web_site:
     server_root_path: /path/to/site1
   - host_name: another-example.com
     server_root_path: /path/to/site2
-num_threads: 8  # スレッドプールのスレッド数（省略可、デフォルトはCPUコア数）
+num_threads: 8  # tokioランタイムのワーカースレッド数（省略可、デフォルトはCPUコア数）
 ```
 
 - `web_site`: ホスト名とそのルートディレクトリのマッピング
-- `num_threads`: サーバーが使用するスレッド数。省略した場合はCPUコア数が使用されます。
+- `num_threads`: tokioランタイムが使用するワーカースレッド数。省略した場合はCPUコア数が使用されます。
 
 ## 静的ファイルの配信
 
